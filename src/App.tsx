@@ -1,25 +1,96 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React from "react";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import "bootstrap/dist/css/bootstrap.min.css";
+import LoginPage from "./pages/LoginPage";
+import Dashboard from "./pages/Dashboard";
+import Navbar from "./components/Navbar";
+import Sidebar from "./components/Sidebar";
+import AllProducts from "./pages/AllProducts";
+import AddProduct from "./pages/AddProduct";
+import EditProduct from "./pages/EditProduct";
+import ViewProduct from "./pages/ViewProduct";
+import Kasir from "./pages/Kasir";
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <>
+              <LoginPage />
+            </>
+          }
+        />
+
+        <Route
+          path="/dashboard"
+          element={
+            <>
+              <Navbar />
+              <Sidebar />
+              <Dashboard />
+            </>
+          }
+        />
+
+        <Route
+          path="/products"
+          element={
+            <>
+              <Navbar />
+              <Sidebar />
+              <AllProducts />
+            </>
+          }
+        />
+
+        <Route
+          path="/product/add"
+          element={
+            <>
+              <Navbar />
+              <Sidebar />
+              <AddProduct />
+            </>
+          }
+        />
+
+        <Route
+          path="/product/edit/:id"
+          element={
+            <>
+              <Navbar />
+              <Sidebar />
+              <EditProduct />
+            </>
+          }
+        />
+
+        <Route
+          path="/product/view/:id"
+          element={
+            <>
+              <Navbar />
+              <Sidebar />
+              <ViewProduct />
+            </>
+          }
+        />
+
+        <Route
+          path="/kasir"
+          element={
+            <>
+              <Navbar />
+              <Sidebar />
+              <Kasir />
+            </>
+          }
+        />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
