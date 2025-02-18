@@ -81,7 +81,7 @@ const Dashboard = () => {
           <nav>
             <ol className="breadcrumb">
               <li className="breadcrumb-item">
-                <a href="index.html">Home</a>
+                <a href="/dashboard">Home</a>
               </li>
               <li className="breadcrumb-item active">Dashboard</li>
             </ol>

@@ -332,7 +332,7 @@ const AllProducts = () => {
             <nav>
               <ol className="breadcrumb" style={{ margin: 0 }}>
                 <li className="breadcrumb-item">
-                  <a href="index.html">Beranda</a>
+                  <a href="/dashboard">Beranda</a>
                 </li>
                 <li className="breadcrumb-item active">Semua Produk</li>
               </ol>
@@ -450,7 +450,7 @@ const AllProducts = () => {
                       wordWrap: "break-word",
                     }}
                   >
-                    {product.hargaJual}
+                    {`Rp. ${Number(product.hargaJual).toLocaleString('id-ID')}`}
                   </div>
                 </div>
               </div>

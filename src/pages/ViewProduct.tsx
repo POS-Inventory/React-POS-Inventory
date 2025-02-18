@@ -59,7 +59,7 @@ const ViewProduct: React.FC = () => {
           <nav>
             <ol className="breadcrumb">
               <li className="breadcrumb-item">
-                <a href="index.html">Beranda</a>
+                <a href="/dashboard">Beranda</a>
               </li>
               <li className="breadcrumb-item">Semua Produk</li>
               <li className="breadcrumb-item active">Detail Produk</li>
