@@ -1,15 +1,17 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { RootState, AppDispatch } from "../app/store";
+import { AppDispatch } from "../app/store";
 import { getMe } from "../features/authSlice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCirclePlus,
   faChevronDown,
   faBorderAll,
+  faEdit,
+  faTrashAlt,
 } from "@fortawesome/free-solid-svg-icons";
 
 import "../assets/css/style.css";
@@ -29,15 +31,30 @@ interface Product {
   url: string;
 }
 
+interface Barang {
+  idBarang: string;
+  nama: string;
+  hargaModal: string;
+  hargaJual: string;
+  untungBersih: string;
+  stock: number;
+}
+
 const AllProducts = () => {
   const [products, setProduct] = useState<Product[]>([]);
+  const [barang, setBarang] = useState<Barang[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [countPestisida, setCountPestisida] = useState(0);
   const [countPupuk, setCountPupuk] = useState(0);
   const [countBibit, setCountBibit] = useState(0);
   const [countAlatPertanian, setCountAlatPertanian] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [idProduct, setIdProduct] = useState("");
+  const [currentPageProduct, setCurrentPageProduct] = useState<number>(1);
+  const [currentPageBarang, setCurrentPageBarang] = useState<number>(1);
+  const productsPerPage = 9;
+  const barangPerPage = 10;
+
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
 
@@ -49,6 +66,7 @@ const AllProducts = () => {
     const token = localStorage.getItem("token");
     if (token) {
       getProduct();
+      getBarang();
       getCountPestisida();
       getCountPupuk();
       getCountBibit();
@@ -60,6 +78,10 @@ const AllProducts = () => {
 
   const toAddProduct = () => {
     navigate("/product/add");
+  };
+
+  const toAddBarang = () => {
+    navigate("/barang/add");
   };
 
   const handleToEditProduct = async (
@@ -79,14 +101,36 @@ const AllProducts = () => {
     }
   };
 
-  const handleToProductId = async (idProduct: string | number): Promise<void> => {
+  const handleToEditBarang = async (
+    idBarang: string | number
+  ): Promise<void> => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(`http://localhost:5000/product/${idProduct}`, {
+      await axios.get(`http://localhost:5000/barang/${idBarang}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+      getBarang();
+      navigate(`/barang/edit/${idBarang}`);
+    } catch (error) {
+      console.error("Error to edit barang:", error);
+    }
+  };
+
+  const handleToProductId = async (
+    idProduct: string | number
+  ): Promise<void> => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get(
+        `http://localhost:5000/product/${idProduct}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       setIdProduct(response.data.idProduct);
       getProduct();
       navigate(`/product/view/${idProduct}`);
@@ -110,10 +154,26 @@ const AllProducts = () => {
     }
   };
 
+  const getBarang = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get("http://localhost:5000/barang", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setBarang(response.data);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
+
   const filterProductsByCategory = (category: string) => {
     setSelectedCategory(category);
     if (category) {
-      setFilteredProducts(products.filter((product) => product.category === category));
+      setFilteredProducts(
+        products.filter((product) => product.category === category)
+      );
     } else {
       setFilteredProducts(products); // Show all products if no category is selected
     }
@@ -122,15 +182,18 @@ const AllProducts = () => {
   const getCountPestisida = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get<Product[]>("http://localhost:5000/product", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get<Product[]>(
+        "http://localhost:5000/product",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       const categoryCountPestisida = response.data.filter(
         (product) => product.category === "Pestisida"
       ).length;
-      
+
       setCountPestisida(categoryCountPestisida);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -140,15 +203,18 @@ const AllProducts = () => {
   const getCountPupuk = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get<Product[]>("http://localhost:5000/product", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get<Product[]>(
+        "http://localhost:5000/product",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       const categoryCountPupuk = response.data.filter(
         (product) => product.category === "Pupuk"
       ).length;
-      
+
       setCountPupuk(categoryCountPupuk);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -158,15 +224,18 @@ const AllProducts = () => {
   const getCountBibit = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get<Product[]>("http://localhost:5000/product", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get<Product[]>(
+        "http://localhost:5000/product",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       const categoryCountBibit = response.data.filter(
         (product) => product.category === "Bibit"
       ).length;
-      
+
       setCountBibit(categoryCountBibit);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -176,15 +245,18 @@ const AllProducts = () => {
   const getCountAlatPertanian = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get<Product[]>("http://localhost:5000/product", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get<Product[]>(
+        "http://localhost:5000/product",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       const categoryCountAlatPertanian = response.data.filter(
         (product) => product.category === "Alat Pertanian"
       ).length;
-      
+
       setCountAlatPertanian(categoryCountAlatPertanian);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -201,10 +273,52 @@ const AllProducts = () => {
           Authorization: `Bearer ${token}`,
         },
       });
-      getProduct(); 
+      getProduct();
     } catch (error) {
       console.error("Error deleting product:", error);
     }
+  };
+
+  const handleDeleteBarang = async (
+    idBarang: string | number
+  ): Promise<void> => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`http://localhost:5000/barang/${idBarang}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      getBarang();
+    } catch (error) {
+      console.error("Error deleting product:", error);
+    }
+  };
+
+  // Logika pagination: menghitung produk untuk halaman saat ini
+  const indexOfLastProduct = currentPageProduct * productsPerPage;
+  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
+  const currentProducts = filteredProducts.slice(
+    indexOfFirstProduct,
+    indexOfLastProduct
+  );
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+
+  const paginate = (pageNumber: number) => {
+    setCurrentPageProduct(pageNumber);
+  };
+
+  // Logika pagination: menghitung barang untuk halaman saat ini
+  const indexOfLastBarang = currentPageBarang * barangPerPage;
+  const indexOfFirstBarang = indexOfLastBarang - barangPerPage;
+  const currentBarang = barang.slice(
+    indexOfFirstBarang,
+    indexOfLastBarang
+  );
+  const totalPagesBarang = Math.ceil(barang.length / barangPerPage);
+
+  const paginateBarang = (pageNumber: number) => {
+    setCurrentPageBarang(pageNumber);
   };
 
   return (
@@ -257,7 +371,7 @@ const AllProducts = () => {
                 <a
                   href="#"
                   className="d-flex justify-content-between align-items-center"
-                  onClick={() => filterProductsByCategory('Pestisida')}
+                  onClick={() => filterProductsByCategory("Pestisida")}
                 >
                   <span>Pestisida</span>
                   <div
@@ -272,7 +386,8 @@ const AllProducts = () => {
               <li>
                 <a
                   className="d-flex justify-content-between align-items-center"
-                  href="#" onClick={() => filterProductsByCategory('Pupuk')}
+                  href="#"
+                  onClick={() => filterProductsByCategory("Pupuk")}
                 >
                   <span>Pupuk</span>
                   <div
@@ -287,7 +402,8 @@ const AllProducts = () => {
               <li>
                 <a
                   className="d-flex justify-content-between align-items-center"
-                  href="#" onClick={() => filterProductsByCategory('Bibit')}
+                  href="#"
+                  onClick={() => filterProductsByCategory("Bibit")}
                 >
                   <span>Bibit</span>
                   <div
@@ -302,7 +418,8 @@ const AllProducts = () => {
               <li>
                 <a
                   className="d-flex justify-content-between align-items-center"
-                  href="#" onClick={() => filterProductsByCategory('Alat Pertanian')}
+                  href="#"
+                  onClick={() => filterProductsByCategory("Alat Pertanian")}
                 >
                   <span>Alat Pertanian</span>
                   <div
@@ -348,6 +465,10 @@ const AllProducts = () => {
           </button>
         </div>
 
+        <div className="pagetitle main mt-4">
+          <h1>Produk Satuan</h1>
+        </div>
+
         <div
           style={{
             display: "grid",
@@ -355,7 +476,7 @@ const AllProducts = () => {
             gap: "24px",
           }}
         >
-          {filteredProducts.map((product) => (
+          {currentProducts.map((product) => (
             <div key={product.idProduct} className="card-body card">
               <nav
                 className="header-nav"
@@ -450,7 +571,7 @@ const AllProducts = () => {
                       wordWrap: "break-word",
                     }}
                   >
-                    {`Rp. ${Number(product.hargaJual).toLocaleString('id-ID')}`}
+                    {`Rp. ${Number(product.hargaJual).toLocaleString("id-ID")}`}
                   </div>
                 </div>
               </div>
@@ -542,6 +663,143 @@ const AllProducts = () => {
             </div>
           ))}
         </div>
+
+        {/* Pagination Produk Navigation */}
+        <nav aria-label="Page navigation example">
+          <ul className="pagination">
+            <li className={`page-item ${currentPageProduct === 1 && "disabled"}`}>
+              <button
+                className="page-link"
+                onClick={() => currentPageProduct > 1 && paginate(currentPageProduct - 1)}
+              >
+                Previous
+              </button>
+            </li>
+            {Array.from({ length: totalPages }, (_, index) => (
+              <li
+                key={index + 1}
+                className={`page-item ${
+                  currentPageProduct === index + 1 ? "active" : ""
+                }`}
+              >
+                <button
+                  className="page-link"
+                  onClick={() => paginate(index + 1)}
+                >
+                  {index + 1}
+                </button>
+              </li>
+            ))}
+            <li
+              className={`page-item ${
+                currentPageProduct === totalPages && "disabled"
+              }`}
+            >
+              <button
+                className="page-link"
+                onClick={() =>
+                  currentPageProduct < totalPages && paginate(currentPageProduct + 1)
+                }
+              >
+                Next
+              </button>
+            </li>
+          </ul>
+        </nav>
+
+        <div className="pagetitle main mt-4 mb-4" style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}>
+          <h1>Produk Dalam /KG</h1>
+          <button
+            className="btn"
+            style={{ backgroundColor: "black", color: "white" }}
+            onClick={toAddBarang}
+          >
+            <FontAwesomeIcon className="me-2" icon={faCirclePlus} />
+            <span>Tambah Produk / KG</span>
+          </button>
+        </div>
+
+        {/* tabel barang dalam kg */}
+        <table id="table-id" className="table datatable printable">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Nama Barang</th>
+              <th>Harga Modal</th>
+              <th>Harga Jual</th>
+              <th>Untung Bersih</th>
+              <th>Stock</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {currentBarang.map((barang, index) => (
+              <tr key={barang.idBarang}>
+                <td>{index + 1}</td>
+                <td>{barang.nama}</td>
+                <td>{barang.hargaModal}</td>
+                <td>{barang.hargaJual}</td>
+                <td>{barang.untungBersih}</td>
+                <td>{barang.stock}</td>
+                <td>
+                  <button type="button" className="btn btn-primary btn-sm me-2" onClick={() => handleToEditBarang(barang.idBarang)}>
+                    <FontAwesomeIcon icon={faEdit} />
+                  </button>
+                  <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDeleteBarang(barang.idBarang)}>
+                    <FontAwesomeIcon icon={faTrashAlt} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Pagination Barang KG Navigation */}
+        <nav aria-label="Page navigation example">
+          <ul className="pagination">
+            <li className={`page-item ${currentPageBarang === 1 && "disabled"}`}>
+              <button
+                className="page-link"
+                onClick={() => currentPageBarang > 1 && paginateBarang(currentPageBarang - 1)}
+              >
+                Previous
+              </button>
+            </li>
+            {Array.from({ length: totalPagesBarang }, (_, index) => (
+              <li
+                key={index + 1}
+                className={`page-item ${
+                  currentPageBarang === index + 1 ? "active" : ""
+                }`}
+              >
+                <button
+                  className="page-link"
+                  onClick={() => paginateBarang(index + 1)}
+                >
+                  {index + 1}
+                </button>
+              </li>
+            ))}
+            <li
+              className={`page-item ${
+                currentPageBarang === totalPagesBarang && "disabled"
+              }`}
+            >
+              <button
+                className="page-link"
+                onClick={() =>
+                  currentPageBarang < totalPagesBarang && paginateBarang(currentPageBarang + 1)
+                }
+              >
+                Next
+              </button>
+            </li>
+          </ul>
+        </nav>
       </main>
     </div>
   );

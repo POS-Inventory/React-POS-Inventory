@@ -9,6 +9,8 @@ import AllProducts from "./pages/AllProducts";
 import AddProduct from "./pages/AddProduct";
 import EditProduct from "./pages/EditProduct";
 import ViewProduct from "./pages/ViewProduct";
+import AddBarang from "./pages/AddBarang";
+import EditBarang from "./pages/EditBarang";
 import Kasir from "./pages/Kasir";
 
 function App() {
@@ -86,6 +88,28 @@ function App() {
               <Navbar />
               <Sidebar />
               <Kasir />
+            </>
+          }
+        />
+
+        <Route
+          path="/barang/add"
+          element={
+            <>
+              <Navbar />
+              <Sidebar />
+              <AddBarang />
+            </>
+          }
+        />
+
+        <Route
+          path="/barang/edit/:id"
+          element={
+            <>
+              <Navbar />
+              <Sidebar />
+              <EditBarang />
             </>
           }
         />
