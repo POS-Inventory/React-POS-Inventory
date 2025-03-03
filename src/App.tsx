@@ -11,6 +11,8 @@ import EditProduct from "./pages/EditProduct";
 import ViewProduct from "./pages/ViewProduct";
 import AddBarang from "./pages/AddBarang";
 import EditBarang from "./pages/EditBarang";
+import ListDiskon from "./pages/ListDiskon";
+import AddDiskon from "./pages/AddDiskon";
 import Kasir from "./pages/Kasir";
 
 function App() {
@@ -110,6 +112,28 @@ function App() {
               <Navbar />
               <Sidebar />
               <EditBarang />
+            </>
+          }
+        />
+
+        <Route
+          path="/diskon"
+          element={
+            <>
+              <Navbar />
+              <Sidebar />
+              <ListDiskon />
+            </>
+          }
+        />
+
+        <Route
+          path="/diskon/add"
+          element={
+            <>
+              <Navbar />
+              <Sidebar />
+              <AddDiskon />
             </>
           }
         />

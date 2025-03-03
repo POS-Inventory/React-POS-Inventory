@@ -1,12 +1,19 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import React, { useState, useEffect, KeyboardEvent, useRef } from "react";
 import axios from "axios";
+import moment from "moment";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { AppDispatch } from "../app/store";
 import { getMe } from "../features/authSlice";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSearch } from "@fortawesome/free-solid-svg-icons";
+import {
+  CustomQuantityModal,
+  PaymentModal,
+  Backdrop,
+  Barang,
+} from "../components/Modal";
 
 import "../assets/css/style.css";
 
@@ -23,28 +30,41 @@ interface Product {
   url: string;
 }
 
-interface Barang {
-  idBarang: string;
-  nama: string;
-  hargaModal: string;
-  hargaJual: string;
-  untungBersih: string;
-  stock: number;
+interface Diskon {
+  idDiskon: string;
+  namaDiskon: string;
+  tanggalBerakhir: string;
+  persentaseDiskon: string;
+  status: boolean;
 }
 
 interface CartItem extends Product {
   quantity: number;
 }
 
+interface BarangCartItem extends Barang {
+  stock: number;
+  customQuantity: number; // Custom quantity in grams
+}
+
 const Kasir = () => {
   const [products, setProduct] = useState<Product[]>([]);
   const [barang, setBarang] = useState<Barang[]>([]);
+  const [activeDiskon, setActiveDiskon] = useState<Diskon | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [searchBarangInput, setSearchBarangInput] = useState("");
   const [filteredBarang, setFilteredBarang] = useState<Barang[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]); // Regular Product Cart
-  const [barangCartItems, setBarangCartItems] = useState<Barang[]>([]); // Barang Cart (Grams)
+  const [barangCartItems, setBarangCartItems] = useState<BarangCartItem[]>([]); // Barang Cart with Custom Quantity (Grams)
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [selectedBarang, setSelectedBarang] = useState<Barang | null>(null); // Store selected barang for modal
+  const [customQuantity, setCustomQuantity] = useState<number>(0); // Store the custom quantity input
+  const [showStrukModal, setShowStrukModal] = useState(false);
+
+  // state untuk menyimpan ke cart:
+  const [productJson, setProductJson] = useState("");
+  const [Diskon, setDiskon] = useState("");
+  const [total, setTotal] = useState("");
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -62,6 +82,7 @@ const Kasir = () => {
     if (token) {
       getProduct();
       getBarang();
+      getDiskon();
     } else {
       navigate("/");
     }
@@ -114,6 +135,20 @@ const Kasir = () => {
     }
   };
 
+  const getDiskon = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get("http://localhost:5000/new-diskon", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setActiveDiskon(response.data);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
+
   const handleSearch = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       const searchCode = searchInput.trim();
@@ -161,40 +196,131 @@ const Kasir = () => {
     }
   };
 
-  // Add Barang to Cart (Grams)
+  // Handle adding Barang with custom quantity
   const addBarangToCart = (barang: Barang) => {
-    // Add Barang (Gram) to the cart with quantity 1 gram
-    const existingItemIndex = barangCartItems.findIndex(
-      (item) => item.idBarang === barang.idBarang
-    );
+    setSelectedBarang(barang); // Set the selected Barang to show in modal
+    setCustomQuantity(0); // Reset custom quantity
+  };
 
-    if (existingItemIndex >= 0) {
-      const updatedCart = [...barangCartItems];
-      updatedCart[existingItemIndex].stock += 1; // Increase stock by 1 gram
-      setBarangCartItems(updatedCart);
-    } else {
-      setBarangCartItems([...barangCartItems, { ...barang, stock: 1 }]);
+  const handleAddBarangToCart = () => {
+    if (selectedBarang && customQuantity > 0) {
+      const existingItemIndex = barangCartItems.findIndex(
+        (item) => item.idBarang === selectedBarang.idBarang
+      );
+
+      if (existingItemIndex >= 0) {
+        const updatedCart = [...barangCartItems];
+        updatedCart[existingItemIndex].stock += customQuantity; // Increase stock by custom quantity
+        updatedCart[existingItemIndex].customQuantity = customQuantity; // Update the custom quantity
+        setBarangCartItems(updatedCart);
+      } else {
+        setBarangCartItems([
+          ...barangCartItems,
+          {
+            ...selectedBarang,
+            stock: customQuantity,
+            customQuantity: customQuantity,
+          },
+        ]);
+      }
     }
-
-    // Clear search input after adding
-    setSearchBarangInput(""); // Clear search input
-    setFilteredBarang([]); // Clear filtered list
-    setDropdownOpen(false); // Close dropdown after selecting
+    setSelectedBarang(null); // Close modal
   };
 
   const totalPrice = cartItems.reduce((total, item) => {
     return total + Number(item.hargaJual) * item.quantity;
   }, 0);
 
+  const totalBarangPrice = barangCartItems.reduce((total, item) => {
+    return total + (Number(item.hargaJual) * item.customQuantity) / 1000;
+  }, 0);
+
+  const isDiscountActive = (discount: Diskon | null): boolean => {
+    if (!discount || !discount.tanggalBerakhir) {
+      return false;
+    }
+    const discountEndDate = moment
+      .utc(discount.tanggalBerakhir)
+      .local()
+      .endOf("day");
+    const currentDate = moment();
+    return currentDate.isSameOrBefore(discountEndDate);
+  };
+
   const calculateChange = () => {
     const payment = parseFloat(paymentAmount) || 0;
-    const change = payment - totalPrice;
+
+    // Calculate the total with discount applied
+    const subtotal = totalPrice + totalBarangPrice;
+    let finalTotal = subtotal;
+
+    // Apply discount if active
+    if (activeDiskon && isDiscountActive(activeDiskon)) {
+      const discountPercentage = parseFloat(activeDiskon.persentaseDiskon);
+      finalTotal = subtotal * (1 - discountPercentage / 100);
+    }
+
+    const change = payment - finalTotal;
     return change >= 0 ? change : 0;
   };
 
   const handlePaymentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^0-9]/g, "");
     setPaymentAmount(value);
+  };
+
+  // Fungsi untuk menggabungkan data dan mengirim POST ke API
+  const handleCheckout = async () => {
+    // Gabungkan data dari cartItems dan barangCartItems ke dalam satu array
+    const mergedProducts = [
+      ...cartItems.map((item) => ({
+        namaBarang: item.nama,
+        harga: Number(item.hargaJual),
+        quantity: item.quantity,
+      })),
+      ...barangCartItems.map((item) => ({
+        namaBarang: item.nama,
+        harga: Number(item.hargaJual),
+        // Karena di totalPrice kita konversi customQuantity (gram) ke kg,
+        // quantity di sini diambil sebagai jumlah kg.
+        quantity: item.customQuantity / 1000,
+      })),
+    ];
+
+    // Hitung subtotal dari kedua cart
+    const subtotal = totalPrice + totalBarangPrice;
+
+    // Ambil nilai diskon jika aktif
+    const discountVal =
+      activeDiskon && isDiscountActive(activeDiskon)
+        ? parseFloat(activeDiskon.persentaseDiskon)
+        : 0;
+
+    // Hitung total akhir dengan menerapkan diskon (jika ada)
+    const finalTotal =
+      discountVal > 0 ? subtotal * (1 - discountVal / 100) : subtotal;
+
+    // Buat payload sesuai skema yang diinginkan
+    const payload = {
+      products: mergedProducts,
+      diskon: discountVal,
+      total: finalTotal,
+    };
+
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post("http://localhost:5000/cart", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      // Opsional: reset cart atau tampilkan modal struk
+      setCartItems([]);
+      setBarangCartItems([]);
+      setShowStrukModal(true);
+    } catch (error) {
+      console.error("Error during checkout:", error);
+    }
   };
 
   return (
@@ -500,7 +626,7 @@ const Kasir = () => {
 
                   {/* Barang Cart Items */}
                   {barangCartItems.length > 0 && (
-                    <div>
+                    <div className="mt-3">
                       {barangCartItems.map((item, index) => (
                         <div
                           key={index}
@@ -509,12 +635,14 @@ const Kasir = () => {
                           <div className="d-flex justify-content-between">
                             <div className="fw-semibold fs-6">{item.nama}</div>
                             <div className="fw-semibold fs-6">
-                              {`Rp.${Number(item.hargaJual).toLocaleString(
-                                "id-ID"
-                              )}`}{" "}
+                              {`Rp.${(
+                                (Number(item.hargaJual) * item.customQuantity) /
+                                1000
+                              ).toLocaleString("id-ID")}`}{" "}
+                              {/* Price calculation */}
                             </div>
-                            <div className="fw-bold fs-5">
-                              {item.stock} gram
+                            <div className="fw-semibold fs-6">
+                              {item.customQuantity} gram
                             </div>
                           </div>
                         </div>
@@ -524,12 +652,34 @@ const Kasir = () => {
                 </div>
 
                 {/* Total Section */}
-                {cartItems.length > 0 && (
+                {(cartItems.length > 0 || barangCartItems.length > 0) && (
                   <div className="mt-4">
+                    <div className="d-flex justify-content-between py-3 border-top border-bottom border-2">
+                      <div className="fs-6">Diskon</div>
+                      <div className="fs-6">
+                        {activeDiskon && isDiscountActive(activeDiskon)
+                          ? `${activeDiskon.persentaseDiskon}%`
+                          : "Tidak ada diskon"}
+                      </div>
+                    </div>
                     <div className="d-flex justify-content-between py-3 border-top border-bottom border-2 mb-4">
                       <div className="fw-bold fs-5">Total</div>
                       <div className="fw-bold fs-5">
-                        {`Rp.${totalPrice.toLocaleString("id-ID")}`}
+                        {(() => {
+                          const subtotal = totalPrice + totalBarangPrice;
+                          let finalTotal = subtotal;
+
+                          // Apply discount if active
+                          if (activeDiskon && isDiscountActive(activeDiskon)) {
+                            const discountPercentage = parseFloat(
+                              activeDiskon.persentaseDiskon
+                            );
+                            finalTotal =
+                              subtotal * (1 - discountPercentage / 100);
+                          }
+
+                          return `Rp.${finalTotal.toLocaleString("id-ID")}`;
+                        })()}
                       </div>
                     </div>
 
@@ -560,13 +710,16 @@ const Kasir = () => {
                       </div>
                     </div>
 
-                    <button className="btn btn-primary w-100 py-3 fw-semibold">
+                    <button
+                      className="btn btn-primary w-100 py-3 fw-semibold"
+                      onClick={handleCheckout}
+                    >
                       Bayar dan Cetak Struk
                     </button>
                   </div>
                 )}
 
-                {cartItems.length === 0 && (
+                {cartItems.length === 0 && barangCartItems.length === 0 && (
                   <div
                     className="d-flex flex-column align-items-center justify-content-center text-center"
                     style={{ height: "300px" }}
@@ -585,6 +738,27 @@ const Kasir = () => {
           </div>
         </div>
       </main>
+
+      {/* Panggil Modal untuk Custom Quantity Input */}
+      <CustomQuantityModal
+        show={!!selectedBarang}
+        selectedBarang={selectedBarang}
+        customQuantity={customQuantity}
+        onCustomQuantityChange={setCustomQuantity}
+        onClose={() => setSelectedBarang(null)}
+        onSubmit={handleAddBarangToCart}
+      />
+
+      {/* Panggil Modal untuk Pembayaran */}
+      <PaymentModal
+        show={showStrukModal}
+        onClose={() => setShowStrukModal(false)}
+      >
+        <p>Isi struk pembayaran akan ditampilkan di sini.</p>
+      </PaymentModal>
+
+      {/* Backdrop untuk menggelapkan background saat modal aktif */}
+      <Backdrop show={showStrukModal || !!selectedBarang} />
     </div>
   );
 };

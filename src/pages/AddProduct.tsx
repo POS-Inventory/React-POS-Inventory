@@ -1,9 +1,9 @@
 /* eslint-disable jsx-a11y/img-redundant-alt */
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { RootState, AppDispatch } from "../app/store";
+import { AppDispatch } from "../app/store";
 import { getMe } from "../features/authSlice";
 
 const AddProduct: React.FC = () => {

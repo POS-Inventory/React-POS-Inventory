@@ -340,6 +340,13 @@ const AllProducts = () => {
           </li>
 
           <li className="nav-item">
+                <a className="nav-link collapsed" href="/diskon">
+                  <img className="me-2" src={order} alt="" />
+                  <span>Diskon</span>
+                </a>
+              </li>
+
+          <li className="nav-item">
             <a className="nav-link collapsed" href="/order-list">
               <img className="me-2" src={order} alt="" />
               <span>History Penjualan</span>
