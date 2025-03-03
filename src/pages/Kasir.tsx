@@ -61,10 +61,11 @@ const Kasir = () => {
   const [customQuantity, setCustomQuantity] = useState<number>(0); // Store the custom quantity input
   const [showStrukModal, setShowStrukModal] = useState(false);
 
-  // state untuk menyimpan ke cart:
-  const [productJson, setProductJson] = useState("");
-  const [Diskon, setDiskon] = useState("");
-  const [total, setTotal] = useState("");
+  const [modalData, setModalData] = useState({
+    total: 0,
+    paymentAmount: 0,
+    change: 0,
+  });
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
@@ -271,42 +272,55 @@ const Kasir = () => {
 
   // Fungsi untuk menggabungkan data dan mengirim POST ke API
   const handleCheckout = async () => {
-    // Gabungkan data dari cartItems dan barangCartItems ke dalam satu array
-    const mergedProducts = [
-      ...cartItems.map((item) => ({
-        namaBarang: item.nama,
-        harga: Number(item.hargaJual),
-        quantity: item.quantity,
-      })),
-      ...barangCartItems.map((item) => ({
-        namaBarang: item.nama,
-        harga: Number(item.hargaJual),
-        // Karena di totalPrice kita konversi customQuantity (gram) ke kg,
-        // quantity di sini diambil sebagai jumlah kg.
-        quantity: item.customQuantity / 1000,
-      })),
-    ];
-
-    // Hitung subtotal dari kedua cart
     const subtotal = totalPrice + totalBarangPrice;
-
-    // Ambil nilai diskon jika aktif
     const discountVal =
       activeDiskon && isDiscountActive(activeDiskon)
         ? parseFloat(activeDiskon.persentaseDiskon)
         : 0;
-
-    // Hitung total akhir dengan menerapkan diskon (jika ada)
+  
     const finalTotal =
       discountVal > 0 ? subtotal * (1 - discountVal / 100) : subtotal;
-
-    // Buat payload sesuai skema yang diinginkan
+  
+    const change = calculateChange();
+  
+    // Set modal data
+    setModalData({
+      total: finalTotal,
+      paymentAmount: parseFloat(paymentAmount),
+      change: change,
+    });
+  
+    // Prepare regular product items with IDs and type
+    const productItems = cartItems.map((item) => ({
+      id: item.idProduct,
+      type: "product",
+      namaBarang: item.nama,
+      harga: Number(item.hargaJual),
+      quantity: item.quantity,
+      actualQuantity: item.quantity // Same for regular products
+    }));
+  
+    // Prepare barang items with IDs and type
+    const barangItems = barangCartItems.map((item) => ({
+      id: item.idBarang,
+      type: "barang",
+      namaBarang: item.nama,
+      harga: Number(item.hargaJual),
+      quantity: item.customQuantity / 1000, // Convert to kg for pricing
+      actualQuantity: item.customQuantity // Store the actual grams for stock updates
+    }));
+  
+    // Combine both types of items
+    const allItems = [...productItems, ...barangItems];
+  
+    // Create payload matching your current API format
     const payload = {
-      products: mergedProducts,
+      products: allItems,
       diskon: discountVal,
       total: finalTotal,
+      updateStock: true // Add flag to update stock
     };
-
+  
     try {
       const token = localStorage.getItem("token");
       await axios.post("http://localhost:5000/cart", payload, {
@@ -314,12 +328,26 @@ const Kasir = () => {
           Authorization: `Bearer ${token}`,
         },
       });
-      // Opsional: reset cart atau tampilkan modal struk
+      
+      // After successful checkout, refresh product and barang data
+      getProduct();
+      getBarang();
+      
+      // Clear carts
       setCartItems([]);
       setBarangCartItems([]);
+      
+      // Show receipt modal
       setShowStrukModal(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error during checkout:", error);
+      
+      // Show error message to user
+      if (error.response && error.response.data && error.response.data.error) {
+        alert(`Error: ${error.response.data.error}`);
+      } else {
+        alert("Gagal melakukan checkout. Silakan coba lagi.");
+      }
     }
   };
 
@@ -753,9 +781,8 @@ const Kasir = () => {
       <PaymentModal
         show={showStrukModal}
         onClose={() => setShowStrukModal(false)}
-      >
-        <p>Isi struk pembayaran akan ditampilkan di sini.</p>
-      </PaymentModal>
+        modalData={modalData}
+      />
 
       {/* Backdrop untuk menggelapkan background saat modal aktif */}
       <Backdrop show={showStrukModal || !!selectedBarang} />
