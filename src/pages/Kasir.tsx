@@ -13,6 +13,7 @@ import {
   PaymentModal,
   Backdrop,
   Barang,
+  ReceiptModal,
 } from "../components/Modal";
 
 import "../assets/css/style.css";
@@ -60,6 +61,7 @@ const Kasir = () => {
   const [selectedBarang, setSelectedBarang] = useState<Barang | null>(null); // Store selected barang for modal
   const [customQuantity, setCustomQuantity] = useState<number>(0); // Store the custom quantity input
   const [showStrukModal, setShowStrukModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   const [modalData, setModalData] = useState({
     total: 0,
@@ -277,19 +279,19 @@ const Kasir = () => {
       activeDiskon && isDiscountActive(activeDiskon)
         ? parseFloat(activeDiskon.persentaseDiskon)
         : 0;
-  
+
     const finalTotal =
       discountVal > 0 ? subtotal * (1 - discountVal / 100) : subtotal;
-  
+
     const change = calculateChange();
-  
+
     // Set modal data
     setModalData({
       total: finalTotal,
       paymentAmount: parseFloat(paymentAmount),
       change: change,
     });
-  
+
     // Prepare regular product items with IDs and type
     const productItems = cartItems.map((item) => ({
       id: item.idProduct,
@@ -297,9 +299,9 @@ const Kasir = () => {
       namaBarang: item.nama,
       harga: Number(item.hargaJual),
       quantity: item.quantity,
-      actualQuantity: item.quantity // Same for regular products
+      actualQuantity: item.quantity, // Same for regular products
     }));
-  
+
     // Prepare barang items with IDs and type
     const barangItems = barangCartItems.map((item) => ({
       id: item.idBarang,
@@ -307,20 +309,20 @@ const Kasir = () => {
       namaBarang: item.nama,
       harga: Number(item.hargaJual),
       quantity: item.customQuantity / 1000, // Convert to kg for pricing
-      actualQuantity: item.customQuantity // Store the actual grams for stock updates
+      actualQuantity: item.customQuantity, // Store the actual grams for stock updates
     }));
-  
+
     // Combine both types of items
     const allItems = [...productItems, ...barangItems];
-  
+
     // Create payload matching your current API format
     const payload = {
       products: allItems,
       diskon: discountVal,
       total: finalTotal,
-      updateStock: true // Add flag to update stock
+      updateStock: true, // Add flag to update stock
     };
-  
+
     try {
       const token = localStorage.getItem("token");
       await axios.post("http://localhost:5000/cart", payload, {
@@ -328,20 +330,20 @@ const Kasir = () => {
           Authorization: `Bearer ${token}`,
         },
       });
-      
+
       // After successful checkout, refresh product and barang data
       getProduct();
       getBarang();
-      
+
       // Clear carts
       setCartItems([]);
       setBarangCartItems([]);
-      
+
       // Show receipt modal
       setShowStrukModal(true);
     } catch (error: any) {
       console.error("Error during checkout:", error);
-      
+
       // Show error message to user
       if (error.response && error.response.data && error.response.data.error) {
         alert(`Error: ${error.response.data.error}`);
@@ -782,10 +784,16 @@ const Kasir = () => {
         show={showStrukModal}
         onClose={() => setShowStrukModal(false)}
         modalData={modalData}
+        onPaymentProcessed={() => setShowReceiptModal(true)}
+      />
+
+      <ReceiptModal
+        show={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
       />
 
       {/* Backdrop untuk menggelapkan background saat modal aktif */}
-      <Backdrop show={showStrukModal || !!selectedBarang} />
+      <Backdrop show={showStrukModal || showReceiptModal || !!selectedBarang} />
     </div>
   );
 };

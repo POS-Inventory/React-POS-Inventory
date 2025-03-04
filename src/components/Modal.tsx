@@ -87,6 +87,7 @@ interface PaymentModalProps {
   show: boolean;
   onClose: () => void;
   modalData: { total: number; paymentAmount: number; change: number };
+  onPaymentProcessed: () => void;
 }
 
 interface Cart {
@@ -105,13 +106,14 @@ interface Product {
   actualQuantity: number;
 }
 
-
 export const PaymentModal: React.FC<PaymentModalProps> = ({
   show,
   onClose,
   modalData,
+  onPaymentProcessed,
 }) => {
   const [cart, setCart] = useState<Cart | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   useEffect(() => {
     if (show) {
@@ -131,6 +133,42 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       console.log("Cart data:", response.data);
     } catch (error) {
       console.error("Error fetching data:", error);
+    }
+  };
+
+  const saveOrder = async () => {
+    if (!cart) {
+      console.error("Cart is null, cannot save order");
+      return;
+    }
+
+    const jsonData = {
+      jumlahDibayar: modalData.paymentAmount,
+      kembalian: modalData.change,
+      idCart: cart.idCart,
+    };
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        "http://localhost:5000/order",
+        jsonData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      console.log("Response dari Server:", response);
+      onClose();
+      if (onPaymentProcessed) onPaymentProcessed();
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        console.log(error.response?.data); // Log detailed error response
+      } else {
+        console.log(error);
+      }
     }
   };
 
@@ -258,9 +296,199 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <button
               type="button"
               className="btn btn-primary"
-              // onClick={...} // Tambahkan logika final pembayaran
+              onClick={saveOrder}
             >
               Proses Pembayaran
+            </button>
+          </div>
+        </div>
+      </div>
+      <ReceiptModal
+        show={showReceiptModal}
+        onClose={() => setShowReceiptModal(false)}
+      />
+    </div>
+  );
+};
+
+interface ReceiptModalProps {
+  show: boolean;
+  onClose: () => void;
+}
+
+interface Product {
+  id: number;
+  type: string;
+  namaBarang: string;
+  harga: number;
+  quantity: number;
+  actualQuantity: number;
+}
+
+interface Cart {
+  products: Product[];
+  diskon: string;
+  total: number;
+  userId: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Order {
+  idOrder: number;
+  codeOrder: string;
+  jumlahDibayar: number;
+  kembalian: number;
+  idCart: number;
+  userId: number;
+  createdAt: string;
+  updatedAt: string;
+  cart: Cart;
+}
+
+export const ReceiptModal: React.FC<ReceiptModalProps> = ({
+  show,
+  onClose,
+}) => {
+  const [order, setOrder] = useState<Order | null>(null);
+
+  useEffect(() => {
+    if (show) {
+      getOrder();
+    }
+  }, [show]);
+
+  const getOrder = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get("http://localhost:5000/new-order", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setOrder(response.data);
+      console.log("Order data:", response.data);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
+
+  const codeOrder = order?.codeOrder || "0";
+  const jumlahDibayar = order?.jumlahDibayar || 0;
+  const kembalian = order?.kembalian || 0;
+  const products = order?.cart?.products || [];
+  const diskon = order?.cart?.diskon || "0";
+  const total = order?.cart?.total || 0;
+
+  const calculateSubtotal = () => {
+    return products.reduce((sum, product) => sum + (product.harga * product.quantity), 0);
+  };
+
+  const subtotal = calculateSubtotal();
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const formatPrice = (price: any) => {
+    return price.toLocaleString("id-ID");
+  };
+
+  return (
+    <div
+      className={`modal fade ${show ? "show" : ""}`}
+      style={{ display: show ? "block" : "none" }}
+      tabIndex={-1}
+      aria-labelledby="receiptModalLabel"
+      aria-hidden="true"
+    >
+      <div className="modal-dialog modal-sm">
+        <div className="modal-content">
+          {/* Header Modal */}
+          <div className="modal-header">
+            <h5 className="modal-title" id="receiptModalLabel">
+              Struk Pembayaran
+            </h5>
+            <button
+              type="button"
+              className="btn-close"
+              onClick={onClose}
+              aria-label="Close"
+            ></button>
+          </div>
+
+          {/* Body Modal */}
+          <div className="modal-body printable text-dark">
+            <div className="receipt-content" style={{ fontSize: "12px" }}>
+              <div className="text-center mb-2">
+                <h6 className="mb-1">UD. Tani Sejahtera</h6>
+                <p className="mb-1" style={{ fontSize: "10px" }}>ID Order: {codeOrder}</p>
+                <hr className="my-2" />
+              </div>
+
+              <div className="receipt-items small">
+              {products.map((product, index) => (
+                  <div className="mb-2" key={index}>
+                    <div className="d-flex justify-content-between mb-1">
+                      <span>{product.namaBarang}</span>
+                    </div>
+                    <div className="d-flex justify-content-between">
+                      <span>
+                        {product.quantity} {product.type === "barang" ? "Kg" : "Pcs"} X {formatPrice(product.harga)}
+                      </span>
+                      <span>Rp. {formatPrice(product.harga * product.quantity)}</span>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="d-flex justify-content-between border-top pt-2 mt-2 text-dark">
+                  <span>Total:</span>
+                  <span>Rp. {formatPrice(subtotal)}</span>
+                </div>
+
+                <div className="d-flex justify-content-between text-dark">
+                  <span>Discount:</span>
+                  <span>{diskon}%</span>
+                </div>
+
+                <div className="d-flex justify-content-between border-top border-bottom py-2 my-2 text-dark">
+                  <strong>Grand Total:</strong>
+                  <strong>Rp. {total.toLocaleString("id-ID")}</strong>
+                </div>
+
+                <div className="d-flex justify-content-between">
+                  <span>Dibayar:</span>
+                  <span>Rp. {jumlahDibayar.toLocaleString("id-ID")}</span>
+                </div>
+
+                <div className="d-flex justify-content-between">
+                  <span>Kembalian:</span>
+                  <span>Rp. {kembalian.toLocaleString("id-ID")}</span>
+                </div>
+              </div>
+
+              <div className="text-center text-dark mt-3 small">
+                <p className="mb-1">Terima kasih telah membeli!</p>
+                <p className="mb-0">Kembali lagi</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Modal */}
+          <div className="modal-footer">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onClose}
+            >
+              Tutup
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handlePrint}
+            >
+              Print
             </button>
           </div>
         </div>
