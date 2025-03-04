@@ -114,10 +114,29 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 }) => {
   const [cart, setCart] = useState<Cart | null>(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [paymentType, setPaymentType] = useState("cash");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     if (show) {
       getCart();
+    }
+  }, [show]);
+
+  // Load Midtrans Snap script when modal is shown
+  useEffect(() => {
+    if (show) {
+      const snapScript = document.createElement("script");
+      snapScript.src = "https://app.sandbox.midtrans.com/snap/snap.js";
+      snapScript.setAttribute("data-client-key", "YOUR_MIDTRANS_CLIENT_KEY"); // Replace with your client key
+      document.head.appendChild(snapScript);
+
+      return () => {
+        // Cleanup
+        if (document.head.contains(snapScript)) {
+          document.head.removeChild(snapScript);
+        }
+      };
     }
   }, [show]);
 
@@ -170,6 +189,64 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         console.log(error);
       }
     }
+  };
+
+  const createMidtransPayment = async () => {
+    setIsProcessing(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        "http://localhost:5000/create-payment",
+        { price: modalData.total },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const { token: snapToken, redirect_url } = response.data;
+      
+      // Open Midtrans Snap
+      if (window.snap && snapToken) {
+        window.snap.pay(snapToken, {
+          onSuccess: function(result) {
+            console.log("Payment success:", result);
+            saveOrder();
+          },
+          onPending: function(result) {
+            console.log("Payment pending:", result);
+          },
+          onError: function(result) {
+            console.log("Payment error:", result);
+          },
+          onClose: function() {
+            console.log("Customer closed the popup without finishing the payment");
+            setIsProcessing(false);
+          }
+        });
+      } else if (redirect_url) {
+        // Fallback to redirect URL if snap.js isn't loaded properly
+        window.open(redirect_url, "_blank");
+      }
+    } catch (error) {
+      console.error("Error creating payment:", error);
+      setIsProcessing(false);
+    }
+  };
+
+  const handleProcessPayment = () => {
+    if (paymentType === "qris") {
+      createMidtransPayment();
+    } else {
+      saveOrder();
+    }
+  };
+
+  const handleClose = () => {
+    onClose(); // Call the original onClose function
+    window.location.reload(); // Reload the page
   };
 
   // Calculate total products based on the sum of all product quantities
@@ -250,9 +327,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <label htmlFor="paymentType" className="form-label">
                     Payment Type
                   </label>
-                  <select className="form-select" id="paymentType">
+                  <select 
+                    className="form-select" 
+                    id="paymentType"
+                    value={paymentType}
+                    onChange={(e) => setPaymentType(e.target.value)}
+                  >
                     <option value="cash">Cash</option>
-                    <option value="card">Qris</option>
+                    <option value="qris">Qris</option>
                   </select>
                 </div>
               </div>
@@ -289,16 +371,17 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <button
               type="button"
               className="btn btn-secondary"
-              onClick={onClose}
+              onClick={handleClose}
             >
               Tutup
             </button>
             <button
               type="button"
               className="btn btn-primary"
-              onClick={saveOrder}
+              onClick={handleProcessPayment}
+              disabled={isProcessing}
             >
-              Proses Pembayaran
+              {isProcessing ? "Processing..." : "Proses Pembayaran"}
             </button>
           </div>
         </div>
@@ -310,6 +393,20 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     </div>
   );
 };
+
+// Add TypeScript declaration to make TS happy
+declare global {
+  interface Window {
+    snap: {
+      pay: (token: string, options: {
+        onSuccess: (result: any) => void;
+        onPending: (result: any) => void;
+        onError: (result: any) => void;
+        onClose: () => void;
+      }) => void;
+    }
+  }
+}
 
 interface ReceiptModalProps {
   show: boolean;
@@ -388,6 +485,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleClose = () => {
+    onClose(); // Call the original onClose function
+    window.location.reload(); // Reload the page
   };
 
   const formatPrice = (price: any) => {
@@ -479,7 +581,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
             <button
               type="button"
               className="btn btn-secondary"
-              onClick={onClose}
+              onClick={handleClose}
             >
               Tutup
             </button>
