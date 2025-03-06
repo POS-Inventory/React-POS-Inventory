@@ -37,14 +37,14 @@ const Sidebar = () => {
               </li>
 
               <li className="nav-item">
-                <a className="nav-link collapsed" href="/order-list">
+                <a className="nav-link collapsed" href="/order">
                   <img className="me-2" src={order} alt="" />
                   <span>History Penjualan</span>
                 </a>
               </li>
 
               <li className="nav-item">
-                <a className="nav-link collapsed" href="/order-list">
+                <a className="nav-link collapsed" href="/laporan">
                   <img className="me-2" src={order} alt="" />
                   <span>Laporan</span>
                 </a>
@@ -52,24 +52,22 @@ const Sidebar = () => {
             </>
           )}
 
-{user && user.role === "kasir" && (
-          <>
+          {user && user.role === "kasir" && (
+            <>
+              <li className="nav-item">
+                <a className="nav-link collapsed" href="/dashboard">
+                  <FontAwesomeIcon className="me-2" icon={faBorderAll} />
+                  <span>DASHBOARD</span>
+                </a>
+              </li>
 
-          <li className="nav-item">
-            <a className="nav-link collapsed" href="/dashboard">
-              <FontAwesomeIcon className="me-2" icon={faBorderAll} />
-              <span>DASHBOARD</span>
-            </a>
-          </li>
-
-          <li className="nav-item">
-            <a className="nav-link collapsed" href="/kasir">
-              <img className="me-2" src={order} alt="" />
-              <span>Kasir</span>
-            </a>
-          </li>
-
-          </>
+              <li className="nav-item">
+                <a className="nav-link collapsed" href="/kasir">
+                  <img className="me-2" src={order} alt="" />
+                  <span>Kasir</span>
+                </a>
+              </li>
+            </>
           )}
         </ul>
       </aside>

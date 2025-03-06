@@ -128,7 +128,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     if (show) {
       const snapScript = document.createElement("script");
       snapScript.src = "https://app.sandbox.midtrans.com/snap/snap.js";
-      snapScript.setAttribute("data-client-key", "YOUR_MIDTRANS_CLIENT_KEY"); // Replace with your client key
+      snapScript.setAttribute("data-client-key", "SB-Mid-client-NUaH86dcf1w5NfJ5"); // Replace with your client key
       document.head.appendChild(snapScript);
 
       return () => {
@@ -520,11 +520,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
           </div>
 
           {/* Body Modal */}
-          <div className="modal-body printable text-dark">
-            <div className="receipt-content" style={{ fontSize: "12px" }}>
+          <div className="modal-body printable text-dark fw-bold">
+            <div className="receipt-content" style={{ fontSize: "15px" }}>
               <div className="text-center mb-2">
                 <h6 className="mb-1">UD. Tani Sejahtera</h6>
-                <p className="mb-1" style={{ fontSize: "10px" }}>ID Order: {codeOrder}</p>
+                <p className="mb-1" style={{ fontSize: "13px" }}>ID Order: {codeOrder}</p>
                 <hr className="my-2" />
               </div>
 

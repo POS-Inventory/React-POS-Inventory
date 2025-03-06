@@ -294,7 +294,7 @@ const Kasir = () => {
 
     // Prepare regular product items with IDs and type
     const productItems = cartItems.map((item) => ({
-      id: item.idProduct,
+      codeProduct: item.codeProduct,
       type: "product",
       namaBarang: item.nama,
       harga: Number(item.hargaJual),

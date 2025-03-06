@@ -1,24 +1,39 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { RootState, AppDispatch } from "../app/store";
+import { AppDispatch } from "../app/store";
 import { getMe } from "../features/authSlice";
 import bag from "../assets/img/bag.svg";
+import moment from "moment";
 
 interface Order {
   idOrder: string;
-  status: string;
+  codeOrder: string;
   createdAt: string;
-  customer: {
-    username: string;
+  cart: {
+    total: number;
   };
-  ongkir: string;
-  totalPembayaran: string;
+}
+
+interface Product {
+  idProduct: string;
+  codeProduct: string;
+  nama: string;
+  category: string;
+  stock: number;
+}
+
+interface Barang {
+  idBarang: string;
+  nama: string;
+  stock: number;
 }
 
 const Dashboard = () => {
   const [orders, setOrder] = useState<Order[]>([]);
+  const [products, setProduct] = useState<Product[]>([]);
+  const [barangs, setBarang] = useState<Barang[]>([]);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalPayment, setTotalPayment] = useState(0);
   const dispatch = useDispatch<AppDispatch>();
@@ -39,24 +54,89 @@ const Dashboard = () => {
 
   useEffect(() => {
     getOrder();
+    getProduct();
+    getBarang();
   }, []);
 
-  const getOrder = async () => {
+  const getOrder = async (): Promise<void> => {
     try {
-      const response = await axios.get("http://localhost:5000/order/order");
-      setOrder(response.data);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Token tidak ditemukan");
+      }
 
-      const totalOrdersCount = response.data.length;
-      setTotalOrders(totalOrdersCount);
+      const response = await axios.get<Order[]>("http://localhost:5000/order", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      const totalPaymentAmount = response.data.reduce(
-        (acc: number, order: Order) => acc + parseFloat(order.totalPembayaran),
-        0
-      );
+      const sortedData: Order[] = response.data.sort((a, b) => {
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      });
+
+      const totalPaymentAmount = sortedData.reduce((total, order) => {
+        return total + order.cart.total;
+      }, 0);
+
       setTotalPayment(totalPaymentAmount);
+      setOrder(sortedData);
+      setTotalOrders(sortedData.length);
 
-      console.log(response.data);
-    } catch (error) {
+      console.log(sortedData);
+    } catch (error: any) {
+      console.error("Error fetching data:", error);
+    }
+  };
+
+  const getProduct = async (): Promise<void> => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Token tidak ditemukan");
+      }
+
+      const response = await axios.get<Product[]>(
+        "http://localhost:5000/product",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const filteredProducts = response.data.filter(
+        (product) => product.stock === 20
+      );
+      setProduct(filteredProducts);
+      console.log(filteredProducts);
+    } catch (error: any) {
+      console.error("Error fetching data:", error);
+    }
+  };
+
+  const getBarang = async (): Promise<void> => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Token tidak ditemukan");
+      }
+
+      const response = await axios.get<Barang[]>(
+        "http://localhost:5000/barang",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const filteredBarangs = response.data.filter(
+        (product) => product.stock <= 20000
+      );
+      setBarang(filteredBarangs);
+      console.log(filteredBarangs);
+    } catch (error: any) {
       console.error("Error fetching data:", error);
     }
   };
@@ -71,6 +151,10 @@ const Dashboard = () => {
       currency: "IDR",
       minimumFractionDigits: 0,
     }).format(num);
+  };
+
+  const formatDate = (dateString: string): string => {
+    return moment(dateString).format("DD/MM/YYYY"); // Menggunakan format DD/MM/YYYY
   };
 
   return (
@@ -146,14 +230,12 @@ const Dashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {orders.map((order, index) => (
+                      {orders.slice(0, 5).map((order, index) => (
                         <tr key={order.idOrder}>
                           <td>{index + 1}</td>
-                          <td>
-                            {new Date(order.createdAt).toLocaleDateString()}
-                          </td>
-                          <td>{order.customer.username}</td>
-                          <td>{formatCurrency(order.totalPembayaran)}</td>
+                          <td>{order.codeOrder}</td>
+                          <td>{formatDate(order.createdAt)}</td>
+                          <td>{formatCurrency(order.cart.total)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -164,6 +246,10 @@ const Dashboard = () => {
           </div>
         </section>
 
+        <div className="pagetitle">
+          <h1>Peringatan Stock Sedikit</h1>
+        </div>
+
         <section className="section">
           <div className="row">
             <div className="col-lg-12">
@@ -173,7 +259,7 @@ const Dashboard = () => {
                     className="card-title"
                     style={{ fontWeight: "bolder", color: "black" }}
                   >
-                    Peringatan Stock Sedikit
+                    Produk
                   </h5>
 
                   <table id="table-id" className="table datatable printable">
@@ -186,16 +272,56 @@ const Dashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {orders.map((order, index) => (
-                        <tr key={order.idOrder}>
-                          <td>{index + 1}</td>
-                          <td>
-                            {new Date(order.createdAt).toLocaleDateString()}
+                      {products.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="text-center">
+                            Stock masih banyak
                           </td>
-                          <td>{order.customer.username}</td>
-                          <td>{formatCurrency(order.totalPembayaran)}</td>
                         </tr>
-                      ))}
+                      ) : (
+                        products.map((product, index) => (
+                          <tr key={product.idProduct}>
+                            <td>{index + 1}</td>
+                            <td>{product.nama}</td>
+                            <td>{product.category}</td>
+                            <td>{product.stock}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+
+                  <h5
+                    className="card-title"
+                    style={{ fontWeight: "bolder", color: "black" }}
+                  >
+                    Produk /Kg
+                  </h5>
+
+                  <table id="table-id" className="table datatable printable">
+                    <thead>
+                      <tr>
+                        <th>No</th>
+                        <th>Nama Produk</th>
+                        <th>Sisa Stok</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {barangs.length === 0 ? (
+                        <tr>
+                          <td colSpan={3} className="text-center">
+                            Stock masih banyak
+                          </td>
+                        </tr>
+                      ) : (
+                        barangs.map((barang, index) => (
+                          <tr key={barang.idBarang}>
+                            <td>{index + 1}</td>
+                            <td>{barang.nama}</td>
+                            <td>{barang.stock}</td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>

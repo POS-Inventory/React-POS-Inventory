@@ -14,6 +14,9 @@ import EditBarang from "./pages/EditBarang";
 import ListDiskon from "./pages/ListDiskon";
 import AddDiskon from "./pages/AddDiskon";
 import Kasir from "./pages/Kasir";
+import ListOrder from "./pages/ListOrder";
+import ViewOrder from "./pages/ViewOrder";
+import Laporan from "./pages/Laporan";
 
 function App() {
   return (
@@ -134,6 +137,38 @@ function App() {
               <Navbar />
               <Sidebar />
               <AddDiskon />
+            </>
+          }
+        />
+
+        <Route
+          path="/order"
+          element={
+            <>
+              <Navbar />
+              <Sidebar />
+              <ListOrder />
+            </>
+          }
+        />
+        <Route
+          path="/order/:id"
+          element={
+            <>
+              <Navbar />
+              <Sidebar />
+              <ViewOrder />
+            </>
+          }
+        />
+
+        <Route
+          path="/laporan"
+          element={
+            <>
+              <Navbar />
+              <Sidebar />
+              <Laporan />
             </>
           }
         />
