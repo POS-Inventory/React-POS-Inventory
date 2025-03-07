@@ -1,5 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable jsx-a11y/img-redundant-alt */
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useDispatch } from "react-redux";
@@ -16,6 +14,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import DateRangeSection from "./DateRangeSection"; // Import the new component
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCalendarDays, faPrint } from "@fortawesome/free-solid-svg-icons";
@@ -78,12 +77,13 @@ interface TopProduct {
   name: string;
   quantity: number;
   total: number;
-  percentage?: number; // Add percentage property
+  percentage?: number;
   color?: string;
 }
 
-const Laporan = () => {
+const Laporan: React.FC = () => {
   const [orders, setOrder] = useState<Order[]>([]);
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [revenueData, setRevenueData] = useState<RevenueData[]>([
     { day: "Senin", penjualan: 0 },
@@ -96,7 +96,7 @@ const Laporan = () => {
   ]);
   const [totalRevenue, setTotalRevenue] = useState<number>(0);
 
-  const progressBarColors = [
+  const progressBarColors: string[] = [
     "#0088FF", // Blue
     "#00E396", // Green
     "#775DD0", // Purple
@@ -119,10 +119,11 @@ const Laporan = () => {
     }
   }, [navigate]);
 
+  // Update this effect to use filteredOrders instead of orders
   useEffect(() => {
-    if (orders.length > 0) {
+    if (filteredOrders.length > 0) {
       // Process top products
-      const processedTopProducts = getTopProducts(orders);
+      const processedTopProducts = getTopProducts(filteredOrders);
       
       // Find the maximum quantity to use as baseline for percentage
       const maxQuantity = Math.max(...processedTopProducts.map(p => p.quantity));
@@ -139,20 +140,23 @@ const Laporan = () => {
       setTopProducts(enhancedProducts);
       
       // Calculate revenue data by day of week
-      const dailyRevenue = getDailyRevenueData(orders);
+      const dailyRevenue = getDailyRevenueData(filteredOrders);
       setRevenueData(dailyRevenue);
       
       // Calculate total revenue
       const total = dailyRevenue.reduce((sum, day) => sum + day.penjualan, 0);
       setTotalRevenue(total);
     }
+  }, [filteredOrders]);
+
+  // Initialize filteredOrders when orders are loaded
+  useEffect(() => {
+    if (orders.length > 0) {
+      setFilteredOrders(orders);
+    }
   }, [orders]);
 
-  const CustomTooltip: React.FC<CustomTooltipProps> = ({
-    active,
-    payload,
-    label,
-  }) => {
+  const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
         <div
@@ -190,9 +194,7 @@ const Laporan = () => {
     return days[date.getDay()];
   };
   
-  // Function to calculate daily revenue data
   const getDailyRevenueData = (orders: Order[]): RevenueData[] => {
-    // Initialize daily revenue with all days set to 0
     const dailyRevenue: Record<string, number> = {
       'Senin': 0,
       'Selasa': 0,
@@ -203,19 +205,16 @@ const Laporan = () => {
       'Minggu': 0
     };
     
-    // Calculate total for each day
     orders.forEach(order => {
       const day = getDayOfWeek(order.createdAt);
       dailyRevenue[day] += parseFloat(order.cart.total.toString());
     });
     
-    // Convert to array format required for the chart
-    const chartData = Object.entries(dailyRevenue).map(([day, penjualan]) => ({
+    const chartData: RevenueData[] = Object.entries(dailyRevenue).map(([day, penjualan]) => ({
       day,
-      penjualan: parseFloat(penjualan.toFixed(2)) // Round to 2 decimal places
+      penjualan: parseFloat(penjualan.toFixed(2))
     }));
     
-    // Reorder days to start with Senin
     const orderedDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
     chartData.sort((a, b) => orderedDays.indexOf(a.day) - orderedDays.indexOf(b.day));
     
@@ -223,29 +222,23 @@ const Laporan = () => {
   };
 
   const getTopProducts = (orders: Order[]): TopProduct[] => {
-    // Create an object to store product information
     const productMap: Record<string, TopProduct> = {};
 
-    // Process each order
     orders.forEach((order) => {
-      // Make sure the cart and products exist
       if (
         order.cart &&
         order.cart.products &&
         Array.isArray(order.cart.products)
       ) {
-        // Process each product in the order
         order.cart.products.forEach((product) => {
           const productName = product.namaBarang;
           const productQuantity = parseFloat(product.quantity.toString());
           const productPrice = parseFloat(product.harga.toString());
 
-          // If the product already exists in our map, update its values
           if (productMap[productName]) {
             productMap[productName].quantity += productQuantity;
             productMap[productName].total += productQuantity * productPrice;
           } else {
-            // Otherwise, create a new entry
             productMap[productName] = {
               name: productName,
               quantity: productQuantity,
@@ -256,7 +249,6 @@ const Laporan = () => {
       }
     });
 
-    // Convert the map to an array and sort by quantity (descending)
     const sortedProducts = Object.values(productMap).sort(
       (a, b) => b.quantity - a.quantity
     );
@@ -287,64 +279,11 @@ const Laporan = () => {
           </nav>
         </div>
 
-        <section className="section">
-          <div className="card">
-            <div className="card-body">
-              <div
-                className="pagetitle-detail printable"
-                style={{
-                  marginTop: "15px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <div style={{ flexGrow: 1 }}>
-                  <ol className="breadcrumb mt-3" style={{ margin: 0 }}>
-                    <li className="me-2">
-                      <FontAwesomeIcon
-                        className="ms-auto"
-                        icon={faCalendarDays}
-                      />
-                    </li>
-                    <li className="breadcrumb-item active">10 Maret 2025</li>
-                  </ol>
-                </div>
-                <div style={{ display: "flex", alignItems: "center" }}>
-                  <select
-                    style={{
-                      width: 219,
-                      height: 52,
-                      padding: 16,
-                      background: "#F4F2F2",
-                      borderRadius: 8,
-                      border: "none",
-                    }}
-                  >
-                    <option>Pilih</option>
-                    <option>Minggu</option>
-                    <option>Bulan</option>
-                    <option>Tahun</option>
-                  </select>
-
-                  <button
-                    style={{
-                      width: 50,
-                      height: 50,
-                      background: "#F4F2F2",
-                      borderRadius: 8,
-                      marginLeft: "10px",
-                      border: "none",
-                    }}
-                    // onClick={handlePrintButtonClick}
-                  >
-                    <FontAwesomeIcon icon={faPrint} />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* Use the new DateRangeSection component */}
+        <DateRangeSection 
+          orders={orders} 
+          setFilteredOrders={setFilteredOrders} 
+        />
 
         <section className="section">
           <div className="card">
